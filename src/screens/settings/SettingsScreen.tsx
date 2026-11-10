@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, Switch, Text, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Field, Screen, SectionTitle, tw } from '../../components/ui';
+import { BiText, Button, Card, Field, Screen, SectionTitle, showAlert, ThemedSwitch, tw } from '../../components/ui';
 import { saveSettings, type Settings } from '../../db/repo';
 import { useSettings } from '../../context/SettingsContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { T } from '../../i18n/labels';
+import { hp, wp } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -13,6 +15,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const { settings, reload } = useSettings();
   const [form, setForm] = useState<Settings>(settings);
   const [saving, setSaving] = useState(false);
+  const logo = wp(24);
 
   useEffect(() => setForm(settings), [settings]);
 
@@ -22,7 +25,7 @@ export default function SettingsScreen({ navigation }: Props) {
     const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, maxWidth: 400, maxHeight: 400, quality: 0.8 });
     const asset = res.assets?.[0];
     if (res.errorMessage) {
-      Alert.alert('Error', res.errorMessage);
+      showAlert(T.error, res.errorMessage);
     } else if (asset?.base64) {
       setForm(f => ({ ...f, shop_logo: `data:${asset.type ?? 'image/jpeg'};base64,${asset.base64}` }));
     }
@@ -30,7 +33,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const save = async () => {
     if (!form.shop_name.trim()) {
-      return Alert.alert('Required', 'Enter shop name');
+      return showAlert(T.required, T.enterShopName);
     }
     setSaving(true);
     try {
@@ -38,7 +41,7 @@ export default function SettingsScreen({ navigation }: Props) {
       await reload();
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert(T.error, e.message);
     } finally {
       setSaving(false);
     }
@@ -46,50 +49,53 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <Screen scroll>
-      <SectionTitle>Shop</SectionTitle>
+      <SectionTitle>{T.shop}</SectionTitle>
       <Card style={tw`items-center`}>
         <Pressable onPress={pickLogo}>
           {form.shop_logo ? (
-            <Image source={{ uri: form.shop_logo }} style={tw`h-24 w-24 rounded-2xl`} resizeMode="contain" />
+            <Image source={{ uri: form.shop_logo }} style={[tw`rounded-2xl`, { height: logo, width: logo }]} resizeMode="contain" />
           ) : (
-            <View style={tw`h-24 w-24 rounded-2xl bg-slate-100 items-center justify-center border border-dashed border-slate-300`}>
-              <Text style={tw`text-slate-400 text-center text-xs`}>Tap to add{'\n'}logo</Text>
+            <View
+              style={[tw`rounded-2xl bg-neutral-100 items-center justify-center border border-dashed border-neutral-400`, { height: logo, width: logo, padding: wp(2) }]}>
+              <BiText label={T.tapToAddLogo} style={tw`text-black text-center text-xs`} />
             </View>
           )}
         </Pressable>
-        <View style={tw`flex-row mt-3`}>
-          <Button small variant="secondary" title={form.shop_logo ? 'Change logo' : 'Choose logo'} onPress={pickLogo} />
-          {form.shop_logo ? <Button small variant="outline" title="Remove" style={tw`ml-2`} onPress={() => setForm(f => ({ ...f, shop_logo: '' }))} /> : null}
+        <View style={[tw`flex-row`, { marginTop: hp(1.5) }]}>
+          <Button small variant="secondary" title={form.shop_logo ? T.changeLogo : T.chooseLogo} onPress={pickLogo} />
+          {form.shop_logo ? <Button small variant="danger" title={T.remove} style={tw`ml-2`} onPress={() => setForm(f => ({ ...f, shop_logo: '' }))} /> : null}
         </View>
       </Card>
-      <Field label="Shop name *" value={form.shop_name} onChangeText={set('shop_name')} />
-      <Field label="Address" value={form.shop_address} onChangeText={set('shop_address')} multiline />
-      <Field label="WhatsApp number" value={form.shop_whatsapp} onChangeText={set('shop_whatsapp')} keyboardType="phone-pad" />
-      <Field label="Phone number" value={form.shop_phone} onChangeText={set('shop_phone')} keyboardType="phone-pad" />
+      <Field label={T.shopName} value={form.shop_name} onChangeText={set('shop_name')} />
+      <Field label={T.address} value={form.shop_address} onChangeText={set('shop_address')} multiline />
+      <Field label={T.whatsappNumber} value={form.shop_whatsapp} onChangeText={set('shop_whatsapp')} keyboardType="phone-pad" />
+      <Field label={T.phoneNumber} value={form.shop_phone} onChangeText={set('shop_phone')} keyboardType="phone-pad" />
 
-      <SectionTitle>Preferences</SectionTitle>
+      <SectionTitle>{T.preferences}</SectionTitle>
       <View style={tw`flex-row`}>
         <View style={tw`flex-1 mr-2`}>
-          <Field label="Currency" value={form.currency} onChangeText={set('currency')} />
+          <Field label={T.currency} value={form.currency} onChangeText={set('currency')} />
         </View>
         <View style={tw`flex-1`}>
-          <Field label="Country code" value={form.country_code} onChangeText={set('country_code')} keyboardType="number-pad" hint="Used for WhatsApp (92 = PK)" />
+          <Field label={T.countryCode} value={form.country_code} onChangeText={set('country_code')} keyboardType="number-pad" hint={T.countryCodeHint} />
         </View>
       </View>
       <View style={tw`flex-row`}>
         <View style={tw`flex-1 mr-2`}>
-          <Field label="Default margin %" value={form.default_margin} onChangeText={set('default_margin')} keyboardType="decimal-pad" />
+          <Field label={T.defaultMargin} value={form.default_margin} onChangeText={set('default_margin')} keyboardType="decimal-pad" />
         </View>
         <View style={tw`flex-1`}>
-          <Field label="Low stock alert (ml)" value={form.low_stock_ml} onChangeText={set('low_stock_ml')} keyboardType="decimal-pad" />
+          <Field label={T.lowStockAlert} value={form.low_stock_ml} onChangeText={set('low_stock_ml')} keyboardType="decimal-pad" />
         </View>
       </View>
-      <Field label="Receipt footer" value={form.receipt_footer} onChangeText={set('receipt_footer')} multiline />
-      <View style={tw`flex-row items-center justify-between mb-4`}>
-        <Text style={tw`text-slate-700 flex-1`}>Show profit on shared receipt</Text>
-        <Switch value={form.show_profit_on_receipt === '1'} onValueChange={v => setForm(f => ({ ...f, show_profit_on_receipt: v ? '1' : '0' }))} />
+      <Field label={T.receiptFooter} value={form.receipt_footer} onChangeText={set('receipt_footer')} multiline />
+      <View style={[tw`flex-row items-center justify-between`, { marginBottom: hp(2) }]}>
+        <View style={tw`flex-1 mr-2`}>
+          <BiText label={T.showProfitOnReceipt} style={tw`text-black`} />
+        </View>
+        <ThemedSwitch value={form.show_profit_on_receipt === '1'} onValueChange={v => setForm(f => ({ ...f, show_profit_on_receipt: v ? '1' : '0' }))} />
       </View>
-      <Button title="Save Settings" onPress={save} loading={saving} />
+      <Button title={T.saveSettings} onPress={save} loading={saving} />
     </Screen>
   );
 }

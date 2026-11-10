@@ -1,9 +1,9 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Field, HeaderButton, Screen } from '../../components/ui';
+import { Button, confirmDestructive, DeleteButton, Field, Screen, showAlert } from '../../components/ui';
 import { deleteVendor, getVendor, saveVendor } from '../../db/repo';
 import type { RootStackParamList } from '../../navigation/types';
+import { T } from '../../i18n/labels';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VendorForm'>;
 
@@ -32,57 +32,40 @@ export default function VendorFormScreen({ navigation, route }: Props) {
     }
   }, [id]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: id ? 'Edit Vendor' : 'New Vendor',
-      headerRight: id
-        ? () => (
-            <HeaderButton
-              title="Delete"
-              color="text-rose-600"
-              onPress={() =>
-                Alert.alert('Delete vendor?', 'Existing purchases will keep the vendor name.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                      await deleteVendor(id);
-                      navigation.goBack();
-                    },
-                  },
-                ])
-              }
-            />
-          )
-        : undefined,
+  const onDelete = (vendorId: number) =>
+    confirmDestructive({
+      title: T.deleteVendorQ,
+      message: T.deleteVendorMsg,
+      onConfirm: async () => {
+        await deleteVendor(vendorId);
+        navigation.goBack();
+      },
     });
-  }, [navigation, id]);
 
   const save = async () => {
     if (!form.name.trim()) {
-      return Alert.alert('Required', 'Please enter vendor name');
+      return showAlert(T.required, T.enterVendorName);
     }
     setSaving(true);
     try {
       await saveVendor({ id, ...form });
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert(T.error, e.message);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Screen scroll>
-      <Field label="Vendor name *" value={form.name} onChangeText={set('name')} />
-      <Field label="WhatsApp number" value={form.whatsapp} onChangeText={set('whatsapp')} keyboardType="phone-pad" placeholder="03xx xxxxxxx" />
-      <Field label="Phone number" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-      <Field label="Email" value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
-      <Field label="Address" value={form.address} onChangeText={set('address')} multiline />
-      <Field label="Notes" value={form.notes} onChangeText={set('notes')} multiline />
-      <Button title={id ? 'Update Vendor' : 'Save Vendor'} onPress={save} loading={saving} />
+    <Screen scroll right={id ? <DeleteButton onPress={() => onDelete(id)} /> : undefined}>
+      <Field label={T.vendorName} value={form.name} onChangeText={set('name')} />
+      <Field label={T.whatsappNumber} value={form.whatsapp} onChangeText={set('whatsapp')} keyboardType="phone-pad" placeholder="03xx xxxxxxx" />
+      <Field label={T.phoneNumber} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      <Field label={T.email} value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
+      <Field label={T.address} value={form.address} onChangeText={set('address')} multiline />
+      <Field label={T.notes} value={form.notes} onChangeText={set('notes')} multiline />
+      <Button title={id ? T.updateVendor : T.saveVendor} onPress={save} loading={saving} />
     </Screen>
   );
 }

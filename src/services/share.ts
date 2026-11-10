@@ -1,9 +1,13 @@
+import { Platform } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { generatePDF } from 'react-native-html-to-pdf';
 import Share from 'react-native-share';
 import type { Order, OrderLine, Settings } from '../db/repo';
 import type { ViewRef } from '../components/Receipt';
+import { T, type Bi } from '../i18n/labels';
 import { escapeHtml, formatDate, ml, money, orderNo, toWhatsAppNumber } from '../utils/format';
+
+const biHtml = (l: Bi) => `${escapeHtml(l.en)} <span class="ur">${escapeHtml(l.ur)}</span>`;
 
 export function receiptHtml(settings: Settings, order: Order, lines: OrderLine[]) {
   const fmt = (n: number) => escapeHtml(money(n, settings.currency));
@@ -26,23 +30,25 @@ export function receiptHtml(settings: Settings, order: Order, lines: OrderLine[]
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
+  @font-face { font-family: 'Jameel Noori Nastaleeq'; src: local('Jameel Noori Nastaleeq'), url('fonts/JameelNooriNastaleeq.ttf') format('truetype'); }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 28px; font-size: 13px; }
-  .head { text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 14px; margin-bottom: 16px; }
+  body { font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; color: #000; margin: 0; padding: 28px; font-size: 13px; }
+  .head { text-align: center; border-bottom: 2px dashed #d4d4d4; padding-bottom: 14px; margin-bottom: 16px; }
   .head img { width: 80px; height: 80px; object-fit: contain; border-radius: 12px; }
   .head h1 { margin: 6px 0 2px; font-size: 24px; }
-  .muted { color: #64748b; font-size: 12px; margin: 2px 0; }
+  .muted { color: #000; font-size: 12px; margin: 2px 0; }
+  .ur { font-family: 'Jameel Noori Nastaleeq', serif; font-size: 1.2em; line-height: 1.8; color: #000; font-weight: 400; text-transform: none; }
   .meta { display: flex; justify-content: space-between; margin-bottom: 12px; }
   .meta h2 { margin: 0 0 4px; font-size: 16px; }
   table { width: 100%; border-collapse: collapse; }
-  th { background: #f1f5f9; text-align: left; padding: 8px; font-size: 11px; color: #475569; text-transform: uppercase; }
-  td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+  th { background: #f5f5f5; text-align: left; padding: 8px; font-size: 11px; color: #000; text-transform: uppercase; }
+  td { padding: 8px; border-bottom: 1px solid #e5e5e5; }
   .r { text-align: right; } .b { font-weight: 700; }
   .totals { margin-left: auto; width: 55%; margin-top: 14px; }
-  .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
-  .grand { border-top: 2px solid #0f172a; margin-top: 4px; padding-top: 8px !important; font-size: 18px; font-weight: 800; }
-  .grand span:last-child { color: #6d28d9; }
-  .footer { text-align: center; margin-top: 28px; padding-top: 12px; border-top: 2px dashed #cbd5e1; color: #64748b; }
+  .totals > div { display: flex; justify-content: space-between; padding: 4px 0; }
+  .grand { border-top: 2px solid #000; margin-top: 4px; padding-top: 8px !important; font-size: 18px; font-weight: 800; }
+  .neg { color: #dc2626; }
+  .footer { text-align: center; margin-top: 28px; padding-top: 12px; border-top: 2px dashed #d4d4d4; color: #000; }
 </style></head><body>
   <div class="head">
     ${settings.shop_logo ? `<img src="${settings.shop_logo}"/>` : ''}
@@ -52,25 +58,25 @@ export function receiptHtml(settings: Settings, order: Order, lines: OrderLine[]
   </div>
   <div class="meta">
     <div>
-      <h2>Bill To</h2>
+      <h2>${biHtml(T.billTo)}</h2>
       <div class="b">${escapeHtml(order.customer_name)}</div>
-      ${order.whatsapp ? `<div>WhatsApp: ${escapeHtml(order.whatsapp)}</div>` : ''}
+      ${order.whatsapp ? `<div>${biHtml(T.whatsapp)}: ${escapeHtml(order.whatsapp)}</div>` : ''}
       ${order.address ? `<div>${escapeHtml(order.address)}</div>` : ''}
     </div>
     <div class="r">
-      <h2>Order ${orderNo(order.id)}</h2>
+      <h2>${escapeHtml(T.order.en)} ${orderNo(order.id)} <span class="ur">${escapeHtml(T.order.ur)}</span></h2>
       <div>${escapeHtml(formatDate(order.created_at))}</div>
     </div>
   </div>
   <table>
-    <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>${biHtml(T.item)}</th><th class="r">${biHtml(T.qty)}</th><th class="r">${biHtml(T.amount)}</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div class="totals">
-    <div><span>Subtotal</span><span>${fmt(order.subtotal)}</span></div>
-    ${order.discount ? `<div><span>Discount</span><span>- ${fmt(order.discount)}</span></div>` : ''}
-    <div class="grand"><span>Total</span><span>${fmt(order.total)}</span></div>
-    ${showProfit ? `<div><span>Profit</span><span>${fmt(order.profit)}</span></div>` : ''}
+    <div><span>${biHtml(T.subtotal)}</span><span>${fmt(order.subtotal)}</span></div>
+    ${order.discount ? `<div><span>${biHtml(T.discount)}</span><span class="neg">- ${fmt(order.discount)}</span></div>` : ''}
+    <div class="grand"><span>${biHtml(T.total)}</span><span>${fmt(order.total)}</span></div>
+    ${showProfit ? `<div><span>${biHtml(T.profit)}</span><span>${fmt(order.profit)}</span></div>` : ''}
   </div>
   ${settings.receipt_footer ? `<div class="footer">${escapeHtml(settings.receipt_footer)}</div>` : ''}
 </body></html>`;
@@ -118,6 +124,8 @@ export async function createReceiptPdf(settings: Settings, order: Order, lines: 
     fileName: `Order_${order.id}_${Date.now()}`,
     width: 595,
     height: 842,
+    // Lets the @font-face url() resolve to the Nastaleeq font bundled in android/app/src/main/assets/fonts.
+    ...(Platform.OS === 'android' ? { baseURL: 'file:///android_asset/' } : {}),
   });
   return res.filePath;
 }

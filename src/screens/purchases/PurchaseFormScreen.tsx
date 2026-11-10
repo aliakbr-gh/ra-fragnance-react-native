@@ -1,12 +1,29 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, Switch, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Field, PickerModal, Row, Screen, SectionTitle, SelectField, tw } from '../../components/ui';
+import {
+  BiText,
+  Button,
+  Card,
+  Field,
+  PickerModal,
+  RemoveButton,
+  Row,
+  Screen,
+  SectionTitle,
+  SelectField,
+  showAlert,
+  ThemedSwitch,
+  tw,
+  UrText,
+} from '../../components/ui';
 import { createPurchase, listItems, listVendors, type Item, type Vendor } from '../../db/repo';
 import { useSettings } from '../../context/SettingsContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { both, T } from '../../i18n/labels';
 import { ml, round2, todayISO, toNum } from '../../utils/format';
+import { hp, wp } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PurchaseForm'>;
 
@@ -44,13 +61,13 @@ export default function PurchaseFormScreen({ navigation }: Props) {
 
   const save = async () => {
     if (!lines.length) {
-      return Alert.alert('No items', 'Add at least one item');
+      return showAlert(T.noItemsTitle, T.addAtLeastOne);
     }
     if (lines.some(l => toNum(l.ml) <= 0)) {
-      return Alert.alert('Quantity missing', 'Enter ml for every item');
+      return showAlert(T.quantityMissing, T.enterMlForEvery);
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return Alert.alert('Invalid date', 'Use format YYYY-MM-DD');
+      return showAlert(T.invalidDate, T.useDateFormat);
     }
     setSaving(true);
     try {
@@ -70,7 +87,7 @@ export default function PurchaseFormScreen({ navigation }: Props) {
       });
       navigation.replace('PurchaseDetail', { id });
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert(T.error, e.message);
     } finally {
       setSaving(false);
     }
@@ -78,59 +95,63 @@ export default function PurchaseFormScreen({ navigation }: Props) {
 
   return (
     <Screen scroll>
-      <SelectField label="Vendor" value={vendor?.name} placeholder="Select vendor" onPress={() => setPicker('vendor')} />
+      <SelectField label={T.vendor} value={vendor?.name} placeholder={T.selectVendor} onPress={() => setPicker('vendor')} />
       {vendors.length === 0 ? (
-        <Pressable onPress={() => navigation.navigate('VendorForm')} style={tw`-mt-2 mb-3`}>
-          <Text style={tw`text-violet-700 font-semibold`}>+ Add a vendor first</Text>
+        <Pressable onPress={() => navigation.navigate('VendorForm')} style={{ marginTop: -hp(1), marginBottom: hp(1.5) }}>
+          <BiText label={T.addVendorFirst} inline style={tw`text-black font-semibold underline`} />
         </Pressable>
       ) : null}
-      <Field label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
+      <Field label={T.dateFormat} value={date} onChangeText={setDate} />
 
-      <SectionTitle right={<Button small variant="secondary" title="+ Add item" onPress={() => setPicker('item')} />}>
-        Items
-      </SectionTitle>
-      {lines.length === 0 ? <Text style={tw`text-slate-400 mb-3`}>No items added</Text> : null}
+      <SectionTitle right={<Button small variant="secondary" title={T.addItemLine} onPress={() => setPicker('item')} />}>{T.items}</SectionTitle>
+      {lines.length === 0 ? (
+        <View style={{ marginBottom: hp(1.5) }}>
+          <BiText label={T.noItemsAdded} inline style={tw`text-black`} urStyle={tw`text-black`} />
+        </View>
+      ) : null}
       {lines.map(l => (
-        <Card key={l.key} style={tw`p-3`}>
-          <View style={tw`flex-row justify-between items-center mb-2`}>
-            <View style={tw`flex-1`}>
-              <Text style={tw`font-bold text-slate-900`}>{l.item.name}</Text>
-              <Text style={tw`text-xs text-slate-500`}>Current stock: {ml(l.item.stock_ml)}</Text>
+        <Card key={l.key} style={{ padding: wp(3) }}>
+          <View style={[tw`flex-row justify-between items-center`, { marginBottom: hp(1) }]}>
+            <View style={tw`flex-1 mr-2`}>
+              <Text style={tw`font-bold text-black`}>{l.item.name}</Text>
+              <UrText style={tw`text-xs text-black`}>
+                {both(T.currentStock, ' · ')}: {ml(l.item.stock_ml)}
+              </UrText>
             </View>
-            <Pressable onPress={() => removeLine(l.key)} hitSlop={10}>
-              <Text style={tw`text-rose-600 font-bold`}>Remove</Text>
-            </Pressable>
+            <RemoveButton onPress={() => removeLine(l.key)} />
           </View>
           <View style={tw`flex-row`}>
             <View style={tw`flex-1 mr-2`}>
-              <Field label="Quantity (ml)" value={l.ml} onChangeText={v => updateLine(l.key, { ml: v })} keyboardType="decimal-pad" placeholder="e.g. 1000" />
+              <Field label={T.quantityMl} value={l.ml} onChangeText={v => updateLine(l.key, { ml: v })} keyboardType="decimal-pad" placeholder="e.g. 1000" />
             </View>
             <View style={tw`flex-1`}>
-              <Field label="Rate / 1000ml" value={l.rate} onChangeText={v => updateLine(l.key, { rate: v })} keyboardType="decimal-pad" />
+              <Field label={T.ratePerLitre} value={l.rate} onChangeText={v => updateLine(l.key, { rate: v })} keyboardType="decimal-pad" />
             </View>
           </View>
-          <Row label="Amount" value={fmt(amountOf(l))} bold />
+          <Row label={T.amount} value={fmt(amountOf(l))} bold />
         </Card>
       ))}
 
       {lines.length ? (
-        <View style={tw`flex-row items-center justify-between mb-3`}>
-          <Text style={tw`text-slate-700 flex-1`}>Update item price to these rates</Text>
-          <Switch value={updatePrices} onValueChange={setUpdatePrices} />
+        <View style={[tw`flex-row items-center justify-between`, { marginBottom: hp(1.5) }]}>
+          <View style={tw`flex-1 mr-2`}>
+            <BiText label={T.updatePrices} style={tw`text-black`} />
+          </View>
+          <ThemedSwitch value={updatePrices} onValueChange={setUpdatePrices} />
         </View>
       ) : null}
 
-      <Field label="Notes" value={notes} onChangeText={setNotes} multiline />
+      <Field label={T.notes} value={notes} onChangeText={setNotes} multiline />
 
       <Card>
-        <Row label="Total quantity" value={ml(totalMl)} />
-        <Row label="Total amount" value={fmt(total)} bold />
+        <Row label={T.totalQuantity} value={ml(totalMl)} />
+        <Row label={T.totalAmount} value={fmt(total)} bold />
       </Card>
-      <Button title="Save Purchase" onPress={save} loading={saving} />
+      <Button title={T.savePurchase} onPress={save} loading={saving} />
 
       <PickerModal
         visible={picker === 'vendor'}
-        title="Select vendor"
+        title={T.selectVendor}
         data={vendors}
         onClose={() => setPicker(null)}
         onSelect={v => {
@@ -143,13 +164,13 @@ export default function PurchaseFormScreen({ navigation }: Props) {
       />
       <PickerModal
         visible={picker === 'item'}
-        title="Select item"
+        title={T.selectItem}
         data={items}
         onClose={() => setPicker(null)}
         onSelect={addLine}
         getKey={i => i.id}
         getLabel={i => i.name}
-        getSubtitle={i => `${fmt(i.price_per_liter)}/L · Stock ${ml(i.stock_ml)}`}
+        getSubtitle={i => `${fmt(i.price_per_liter)}/L · ${both(T.stock, ' ')} ${ml(i.stock_ml)}`}
       />
     </Screen>
   );

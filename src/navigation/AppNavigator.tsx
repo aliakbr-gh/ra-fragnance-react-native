@@ -1,9 +1,14 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList, TabParamList } from './types';
+import { tw, urduFont, urduLineHeight } from '../components/ui';
+import { T, type Bi } from '../i18n/labels';
+import { colors } from '../theme';
+import { hp } from '../utils/responsive';
 
 import HomeScreen from '../screens/HomeScreen';
 import OrdersScreen from '../screens/orders/OrdersScreen';
@@ -27,30 +32,58 @@ import MoreScreen from '../screens/MoreScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const VIOLET = '#6d28d9';
-
 const theme = {
   ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, primary: VIOLET, background: '#f8fafc' },
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.black,
+    background: colors.white,
+    card: colors.white,
+    text: colors.text,
+    border: colors.border,
+    notification: colors.danger,
+  },
 };
 
-const tabIcon = (emoji: string) => ({ focused }: { focused: boolean }) => (
-  <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
-);
+const tabIcon =
+  (emoji: string) =>
+  ({ focused }: { focused: boolean }) =>
+    <Text style={[tw`${focused ? 'opacity-100' : 'opacity-50'}`, { fontSize: hp(2.4) }]}>{emoji}</Text>;
+
+const tabLabel =
+  (label: Bi) =>
+  ({ focused }: { focused: boolean }) =>
+    (
+      <View style={tw`items-center`}>
+        <Text style={tw`text-[10px] leading-3 text-black ${focused ? 'font-extrabold' : 'font-normal'}`} numberOfLines={1}>
+          {label.en}
+        </Text>
+        <Text style={[tw`text-black`, urduFont(10), urduLineHeight(10)]} numberOfLines={1}>
+          {label.ur}
+        </Text>
+      </View>
+    );
+
+const tab = (label: Bi, emoji: string) => ({
+  tabBarIcon: tabIcon(emoji),
+  tabBarLabel: tabLabel(label),
+});
 
 function Tabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: VIOLET,
-        tabBarLabelStyle: { fontWeight: '600' },
-        headerTitleStyle: { fontWeight: '700' },
+        headerShown: false,
+        tabBarActiveTintColor: colors.black,
+        tabBarInactiveTintColor: colors.black,
+        tabBarStyle: { height: hp(9) + insets.bottom, paddingTop: hp(0.6), borderTopColor: colors.border },
       }}>
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: tabIcon('🏠'), title: 'Dashboard', tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Orders" component={OrdersScreen} options={{ tabBarIcon: tabIcon('🧾') }} />
-      <Tab.Screen name="Items" component={ItemsScreen} options={{ tabBarIcon: tabIcon('🧴') }} />
-      <Tab.Screen name="Purchases" component={PurchasesScreen} options={{ tabBarIcon: tabIcon('📦') }} />
-      <Tab.Screen name="More" component={MoreScreen} options={{ tabBarIcon: tabIcon('☰') }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={tab(T.home, '🏠')} />
+      <Tab.Screen name="Orders" component={OrdersScreen} options={tab(T.orders, '🧾')} />
+      <Tab.Screen name="Items" component={ItemsScreen} options={tab(T.items, '🧴')} />
+      <Tab.Screen name="Purchases" component={PurchasesScreen} options={tab(T.purchases, '📦')} />
+      <Tab.Screen name="More" component={MoreScreen} options={tab(T.more, '☰')} />
     </Tab.Navigator>
   );
 }
@@ -58,21 +91,21 @@ function Tabs() {
 export default function AppNavigator() {
   return (
     <NavigationContainer theme={theme}>
-      <Stack.Navigator screenOptions={{ headerTitleStyle: { fontWeight: '700' }, headerTintColor: VIOLET }}>
-        <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-        <Stack.Screen name="ItemForm" component={ItemFormScreen} options={{ title: 'Item' }} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Tabs" component={Tabs} />
+        <Stack.Screen name="ItemForm" component={ItemFormScreen} />
         <Stack.Screen name="Vendors" component={VendorsScreen} />
-        <Stack.Screen name="VendorForm" component={VendorFormScreen} options={{ title: 'Vendor' }} />
-        <Stack.Screen name="PurchaseForm" component={PurchaseFormScreen} options={{ title: 'New Purchase' }} />
-        <Stack.Screen name="PurchaseDetail" component={PurchaseDetailScreen} options={{ title: 'Purchase' }} />
-        <Stack.Screen name="Adjustments" component={AdjustmentsScreen} options={{ title: 'Stock Adjustments' }} />
-        <Stack.Screen name="AdjustmentForm" component={AdjustmentFormScreen} options={{ title: 'Adjust Stock' }} />
-        <Stack.Screen name="OrderForm" component={OrderFormScreen} options={{ title: 'New Order' }} />
-        <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: 'Order' }} />
+        <Stack.Screen name="VendorForm" component={VendorFormScreen} />
+        <Stack.Screen name="PurchaseForm" component={PurchaseFormScreen} />
+        <Stack.Screen name="PurchaseDetail" component={PurchaseDetailScreen} />
+        <Stack.Screen name="Adjustments" component={AdjustmentsScreen} />
+        <Stack.Screen name="AdjustmentForm" component={AdjustmentFormScreen} />
+        <Stack.Screen name="OrderForm" component={OrderFormScreen} />
+        <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
         <Stack.Screen name="Customers" component={CustomersScreen} />
-        <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={{ title: 'Customer' }} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Shop Settings' }} />
-        <Stack.Screen name="Backup" component={BackupScreen} options={{ title: 'Backup & Restore' }} />
+        <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Backup" component={BackupScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

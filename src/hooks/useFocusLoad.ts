@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { both, T } from '../i18n/labels';
 
 /** Re-runs the loader every time the screen gains focus, so lists stay fresh after edits on other screens. */
 export function useFocusLoad<T>(loader: () => Promise<T>, initial: T, deps: unknown[] = []) {
@@ -14,7 +15,7 @@ export function useFocusLoad<T>(loader: () => Promise<T>, initial: T, deps: unkn
     try {
       setData(await load());
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? String(e));
+      Alert.alert(both(T.error), e?.message ?? String(e));
     } finally {
       setLoading(false);
     }

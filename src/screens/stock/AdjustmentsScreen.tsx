@@ -1,46 +1,48 @@
 import React from 'react';
-import { Alert, FlatList, Text, View } from 'react-native';
-import { Card, Empty, Fab, Screen, tw } from '../../components/ui';
+import { FlatList, Text, View } from 'react-native';
+import { Card, confirmDestructive, Empty, Fab, RemoveButton, Screen, tw, UrText } from '../../components/ui';
 import { deleteAdjustment, listAdjustments, type Adjustment } from '../../db/repo';
 import { useFocusLoad } from '../../hooks/useFocusLoad';
 import { useNav } from '../../navigation/types';
+import { both, T } from '../../i18n/labels';
 import { formatDate, ml } from '../../utils/format';
+import { hp, wp } from '../../utils/responsive';
 
 export default function AdjustmentsScreen() {
   const nav = useNav();
   const { data, refresh } = useFocusLoad<Adjustment[]>(listAdjustments, []);
 
   const confirmDelete = (a: Adjustment) =>
-    Alert.alert('Delete adjustment?', 'Stock will be reverted.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteAdjustment(a.id);
-          refresh();
-        },
+    confirmDestructive({
+      title: T.deleteAdjustmentQ,
+      message: T.deleteAdjustmentMsg,
+      onConfirm: async () => {
+        await deleteAdjustment(a.id);
+        refresh();
       },
-    ]);
+    });
 
   return (
     <Screen>
       <FlatList
         data={data}
         keyExtractor={a => String(a.id)}
-        contentContainerStyle={tw`p-4 pb-24`}
-        ListEmptyComponent={<Empty text="No adjustments yet" />}
+        contentContainerStyle={{ padding: wp(4), paddingBottom: hp(12) }}
+        ListEmptyComponent={<Empty text={T.noAdjustments} />}
         renderItem={({ item }) => (
-          <Card onPress={() => confirmDelete(item)} style={tw`flex-row items-center`}>
-            <View style={tw`flex-1`}>
-              <Text style={tw`text-base font-bold text-slate-900`}>{item.item_name ?? 'Deleted item'}</Text>
-              <Text style={tw`text-sm text-slate-600`}>{item.reason}</Text>
-              <Text style={tw`text-xs text-slate-400`}>{formatDate(item.created_at)} · tap to delete</Text>
+          <Card style={tw`flex-row items-center`}>
+            <View style={tw`flex-1 mr-2`}>
+              <UrText style={tw`text-base font-bold text-black`}>{item.item_name ?? both(T.deletedItem, ' · ')}</UrText>
+              <Text style={tw`text-sm text-black`}>{item.reason}</Text>
+              <Text style={tw`text-xs text-black`}>{formatDate(item.created_at)}</Text>
             </View>
-            <Text style={tw`text-lg font-extrabold ${item.ml >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {item.ml >= 0 ? '+' : ''}
-              {ml(item.ml)}
-            </Text>
+            <View style={tw`items-end`}>
+              <Text style={[tw`text-lg font-extrabold ${item.ml >= 0 ? 'text-black' : 'text-red-600'}`, { marginBottom: hp(0.6) }]}>
+                {item.ml >= 0 ? '+' : ''}
+                {ml(item.ml)}
+              </Text>
+              <RemoveButton label={T.delete} onPress={() => confirmDelete(item)} />
+            </View>
           </Card>
         )}
       />

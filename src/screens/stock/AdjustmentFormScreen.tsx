@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Chip, Field, PickerModal, Row, Screen, Segmented, SelectField, tw } from '../../components/ui';
+import { BiText, Button, Card, Chip, Field, PickerModal, Row, Screen, Segmented, SelectField, showAlert, tw } from '../../components/ui';
 import { createAdjustment, listItems, type Item } from '../../db/repo';
 import { useSettings } from '../../context/SettingsContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { both, T } from '../../i18n/labels';
 import { ml, toNum } from '../../utils/format';
+import { hp } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AdjustmentForm'>;
-
-const REASONS = {
-  plus: ['Opening stock', 'Counting correction', 'Returned by customer', 'Free sample received'],
-  minus: ['Damaged / Leaked', 'Evaporation', 'Tester / Sample', 'Counting correction', 'Personal use'],
-};
 
 export default function AdjustmentFormScreen({ navigation, route }: Props) {
   const { fmt } = useSettings();
@@ -38,20 +35,20 @@ export default function AdjustmentFormScreen({ navigation, route }: Props) {
 
   const save = async () => {
     if (!item) {
-      return Alert.alert('Required', 'Select an item');
+      return showAlert(T.required, T.selectAnItem);
     }
     if (toNum(qty) <= 0) {
-      return Alert.alert('Required', 'Enter quantity in ml');
+      return showAlert(T.required, T.enterQtyMl);
     }
     if (!reason.trim()) {
-      return Alert.alert('Required', 'Enter a reason');
+      return showAlert(T.required, T.enterReason);
     }
     setSaving(true);
     try {
       await createAdjustment(item.id, signed, reason);
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert(T.error, e.message);
     } finally {
       setSaving(false);
     }
@@ -59,7 +56,7 @@ export default function AdjustmentFormScreen({ navigation, route }: Props) {
 
   return (
     <Screen scroll>
-      <SelectField label="Item *" value={item?.name} placeholder="Select item" onPress={() => setPicker(true)} />
+      <SelectField label={T.itemRequired} value={item?.name} placeholder={T.selectItem} onPress={() => setPicker(true)} />
       <Segmented
         value={type}
         onChange={v => {
@@ -67,31 +64,33 @@ export default function AdjustmentFormScreen({ navigation, route }: Props) {
           setReason('');
         }}
         options={[
-          { label: '+ Add stock', value: 'plus', activeStyle: 'bg-emerald-600' },
-          { label: '− Remove stock', value: 'minus', activeStyle: 'bg-rose-600' },
+          { label: T.addStock, value: 'plus' },
+          { label: T.removeStock, value: 'minus', activeStyle: 'bg-red-600' },
         ]}
       />
-      <Field label="Quantity (ml) *" value={qty} onChangeText={setQty} keyboardType="decimal-pad" placeholder="e.g. 50" />
-      <Text style={tw`text-xs font-semibold text-slate-600 mb-1`}>Reason *</Text>
+      <Field label={T.quantityMlRequired} value={qty} onChangeText={setQty} keyboardType="decimal-pad" placeholder="e.g. 50" />
+      <View style={tw`flex-row justify-between mb-1`}>
+        <BiText label={T.reasonRequired} inline style={tw`text-xs font-semibold text-black`} />
+      </View>
       <View style={tw`flex-row flex-wrap`}>
-        {REASONS[type].map(r => (
-          <Chip key={r} label={r} active={reason === r} onPress={() => setReason(r)} />
+        {T.reasons[type].map(r => (
+          <Chip key={r.en} label={r} active={reason === r.en} onPress={() => setReason(r.en)} />
         ))}
       </View>
-      <Field value={reason} onChangeText={setReason} placeholder="Or type a reason" multiline />
+      <Field value={reason} onChangeText={setReason} placeholder={T.typeReason} multiline />
 
       {item ? (
-        <Card>
-          <Row label="Current stock" value={ml(item.stock_ml)} />
-          <Row label="Change" value={`${signed >= 0 ? '+' : ''}${ml(signed)}`} color={signed >= 0 ? 'text-emerald-600' : 'text-rose-600'} />
-          <Row label="New stock" value={ml(item.stock_ml + signed)} bold />
+        <Card style={{ marginTop: hp(0.5) }}>
+          <Row label={T.currentStock} value={ml(item.stock_ml)} />
+          <Row label={T.change} value={`${signed >= 0 ? '+' : ''}${ml(signed)}`} color={signed >= 0 ? 'text-black' : 'text-red-600'} />
+          <Row label={T.newStock} value={ml(item.stock_ml + signed)} bold />
         </Card>
       ) : null}
-      <Button title="Save Adjustment" onPress={save} loading={saving} variant={type === 'plus' ? 'success' : 'danger'} />
+      <Button title={T.saveAdjustment} onPress={save} loading={saving} variant={type === 'plus' ? 'primary' : 'danger'} />
 
       <PickerModal
         visible={picker}
-        title="Select item"
+        title={T.selectItem}
         data={items}
         onClose={() => setPicker(false)}
         onSelect={i => {
@@ -100,7 +99,7 @@ export default function AdjustmentFormScreen({ navigation, route }: Props) {
         }}
         getKey={i => i.id}
         getLabel={i => i.name}
-        getSubtitle={i => `Stock ${ml(i.stock_ml)} · ${fmt(i.price_per_liter)}/L`}
+        getSubtitle={i => `${both(T.stock, ' ')} ${ml(i.stock_ml)} · ${fmt(i.price_per_liter)}/L`}
       />
     </Screen>
   );

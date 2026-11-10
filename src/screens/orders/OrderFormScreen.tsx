@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Chip, Field, PickerModal, Row, Screen, SectionTitle, tw } from '../../components/ui';
+import { BiText, Button, Card, Chip, Field, PickerModal, RemoveButton, Row, Screen, SectionTitle, showAlert, tw, UrText } from '../../components/ui';
 import { createOrder, getCustomer, listCustomers, listItems, type Customer, type Item } from '../../db/repo';
 import { useSettings } from '../../context/SettingsContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { both, T, withSuffix } from '../../i18n/labels';
 import { ml, round2, toNum } from '../../utils/format';
+import { hp, wp } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderForm'>;
 
@@ -96,7 +98,7 @@ export default function OrderFormScreen({ navigation, route }: Props) {
       });
       navigation.replace('OrderDetail', { id });
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert(T.error, e.message);
     } finally {
       setSaving(false);
     }
@@ -104,113 +106,119 @@ export default function OrderFormScreen({ navigation, route }: Props) {
 
   const save = () => {
     if (!name.trim()) {
-      return Alert.alert('Required', 'Enter customer name');
+      return showAlert(T.required, T.enterCustomerName);
     }
     if (!lines.length) {
-      return Alert.alert('No items', 'Add at least one item');
+      return showAlert(T.noItemsTitle, T.addAtLeastOne);
     }
     if (calcs.some(c => c.qty <= 0)) {
-      return Alert.alert('Quantity missing', 'Enter ml for every item');
+      return showAlert(T.quantityMissing, T.enterMlForEvery);
     }
     if (disc > subtotal) {
-      return Alert.alert('Invalid discount', 'Discount cannot be more than subtotal');
+      return showAlert(T.invalidDiscount, T.discountTooHigh);
     }
     const needed = new Map<number, number>();
     lines.forEach((l, i) => needed.set(l.item.id, (needed.get(l.item.id) ?? 0) + calcs[i].qty));
     const short = lines.filter((l, i, arr) => arr.findIndex(x => x.item.id === l.item.id) === i && (needed.get(l.item.id) ?? 0) > l.item.stock_ml);
     if (short.length) {
-      return Alert.alert(
-        'Low stock',
-        `${short.map(l => `${l.item.name}: have ${ml(l.item.stock_ml)}`).join('\n')}\n\nPlace order anyway? Stock will go negative.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Place order', onPress: submit },
-        ],
-      );
+      const list = short.map(l => `${l.item.name}: ${both(T.have, ' · ')} ${ml(l.item.stock_ml)}`).join('\n');
+      return Alert.alert(both(T.lowStock), `${list}\n\n${both(T.stockGoesNegative, '\n')}`, [
+        { text: both(T.cancel), style: 'cancel' },
+        { text: both(T.placeOrderAnyway), onPress: submit },
+      ]);
     }
     submit();
   };
 
   return (
     <Screen scroll>
-      <SectionTitle right={customers.length ? <Button small variant="secondary" title="Pick existing" onPress={() => setPicker('customer')} /> : null}>
-        Customer
+      <SectionTitle right={customers.length ? <Button small variant="secondary" title={T.pickExisting} onPress={() => setPicker('customer')} /> : null}>
+        {T.customer}
       </SectionTitle>
       <Field
-        label="Customer name *"
+        label={T.customerName}
         value={name}
         onChangeText={v => {
           setName(v);
           setCustomerId(null);
         }}
+        returnKeyType="next"
       />
-      <Field label="WhatsApp number" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" placeholder="03xx xxxxxxx" />
-      <Field label="Address" value={address} onChangeText={setAddress} multiline />
+      <Field label={T.whatsappNumber} value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" placeholder="03xx xxxxxxx" />
+      <Field label={T.address} value={address} onChangeText={setAddress} multiline />
 
-      <SectionTitle right={<Button small variant="secondary" title="+ Add item" onPress={() => setPicker('item')} />}>Items</SectionTitle>
-      {lines.length === 0 ? <Text style={tw`text-slate-400 mb-3`}>No items added</Text> : null}
+      <SectionTitle right={<Button small variant="secondary" title={T.addItemLine} onPress={() => setPicker('item')} />}>{T.items}</SectionTitle>
+      {lines.length === 0 ? (
+        <View style={{ marginBottom: hp(1.5) }}>
+          <BiText label={T.noItemsAdded} inline style={tw`text-black`} urStyle={tw`text-black`} />
+        </View>
+      ) : null}
       {lines.map((l, i) => {
         const c = calcs[i];
         return (
-          <Card key={l.key} style={tw`p-3`}>
+          <Card key={l.key} style={{ padding: wp(3) }}>
             <View style={tw`flex-row justify-between items-center`}>
-              <View style={tw`flex-1`}>
-                <Text style={tw`font-bold text-slate-900`}>{l.item.name}</Text>
-                <Text style={tw`text-xs text-slate-500`}>
-                  {fmt(l.item.price_per_liter)}/1000ml · Stock {ml(l.item.stock_ml)}
-                </Text>
+              <View style={tw`flex-1 mr-2`}>
+                <Text style={tw`font-bold text-black`}>{l.item.name}</Text>
+                <UrText style={tw`text-xs text-black`}>
+                  {fmt(l.item.price_per_liter)}/1000ml · {both(T.stock, ' ')} {ml(l.item.stock_ml)}
+                </UrText>
               </View>
-              <Pressable onPress={() => removeLine(l.key)} hitSlop={10}>
-                <Text style={tw`text-rose-600 font-bold`}>Remove</Text>
-              </Pressable>
+              <RemoveButton onPress={() => removeLine(l.key)} />
             </View>
-            <View style={tw`flex-row flex-wrap mt-2`}>
+            <View style={[tw`flex-row flex-wrap`, { marginTop: hp(1) }]}>
               {QUICK_ML.map(q => (
                 <Chip key={q} label={`${q}ml`} active={toNum(l.ml) === q} onPress={() => updateLine(l.key, { ml: String(q) })} />
               ))}
             </View>
             <View style={tw`flex-row`}>
               <View style={tw`flex-1 mr-2`}>
-                <Field label="Quantity (ml)" value={l.ml} onChangeText={v => updateLine(l.key, { ml: v })} keyboardType="decimal-pad" placeholder="ml" />
+                <Field label={T.quantityMl} value={l.ml} onChangeText={v => updateLine(l.key, { ml: v })} keyboardType="decimal-pad" placeholder="ml" />
               </View>
               <View style={tw`flex-1`}>
-                <Field label="Margin %" value={l.margin} onChangeText={v => updateLine(l.key, { margin: v })} keyboardType="decimal-pad" placeholder="0" />
+                <Field label={T.marginPercent} value={l.margin} onChangeText={v => updateLine(l.key, { margin: v })} keyboardType="decimal-pad" placeholder="0" />
               </View>
             </View>
-            <Row label="Price (auto)" value={fmt(c.base)} />
-            <Row label={`Margin (${c.marginPercent}%)`} value={`+ ${fmt(c.marginAmount)}`} color="text-emerald-600" />
-            <Row label="Line total" value={fmt(c.amount)} bold />
+            <Row label={T.priceAuto} value={fmt(c.base)} />
+            <Row label={withSuffix(T.margin, ` (${c.marginPercent}%)`)} value={`+ ${fmt(c.marginAmount)}`} />
+            <Row label={T.lineTotal} value={fmt(c.amount)} bold />
           </Card>
         );
       })}
 
-      <Field label={`Discount (${settings.currency})`} value={discount} onChangeText={setDiscount} keyboardType="decimal-pad" placeholder="0" />
-      <Field label="Notes" value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+      <Field
+        label={withSuffix(T.discount, ` (${settings.currency})`)}
+        value={discount}
+        onChangeText={setDiscount}
+        keyboardType="decimal-pad"
+        placeholder="0"
+      />
+      <Field label={T.notes} value={notes} onChangeText={setNotes} multiline placeholder={T.optional} />
 
       <Card>
-        <Row label="Subtotal" value={fmt(subtotal)} />
-        <Row label="Discount" value={`− ${fmt(disc)}`} color="text-rose-600" />
-        <Row label="Total" value={fmt(total)} bold />
-        <View style={tw`border-t border-slate-100 mt-2 pt-2`}>
-          <Row label="Total margin" value={fmt(marginTotal)} />
-          <Row label="Profit (after discount)" value={fmt(profit)} bold color={profit >= 0 ? 'text-emerald-600' : 'text-rose-600'} />
+        <Row label={T.subtotal} value={fmt(subtotal)} />
+        <Row label={T.discount} value={`− ${fmt(disc)}`} color="text-red-600" />
+        <Row label={T.total} value={fmt(total)} bold />
+        <View style={[tw`border-t border-neutral-200`, { marginTop: hp(1), paddingTop: hp(1) }]}>
+          <Row label={T.totalMargin} value={fmt(marginTotal)} />
+          <Row label={T.profitAfterDiscount} value={fmt(profit)} bold color={profit >= 0 ? 'text-black' : 'text-red-600'} />
         </View>
       </Card>
-      <Button title="Place Order" onPress={save} loading={saving} />
+      <Button title={T.placeOrder} onPress={save} loading={saving} />
 
       <PickerModal
         visible={picker === 'item'}
-        title="Select item"
+        title={T.selectItem}
         data={items}
         onClose={() => setPicker(null)}
         onSelect={addLine}
         getKey={i => i.id}
         getLabel={i => i.name}
-        getSubtitle={i => `${fmt(i.price_per_liter)}/L · Stock ${ml(i.stock_ml)}`}
+        getSubtitle={i => `${fmt(i.price_per_liter)}/L · ${both(T.stock, ' ')} ${ml(i.stock_ml)}`}
       />
       <PickerModal
         visible={picker === 'customer'}
-        title="Select customer"
+        title={T.selectCustomer}
         data={customers}
         onClose={() => setPicker(null)}
         onSelect={pickCustomer}
